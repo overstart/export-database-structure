@@ -5,6 +5,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Base64;
 
 public class FileUtils {
@@ -24,14 +26,19 @@ public class FileUtils {
 		return stream;
 	}
 	
-	public static File Base64ToFile(String path,boolean isMysql) throws IOException {
+	/*public static File Base64ToFile(String path,boolean isMysql) throws IOException {
 		byte[] bs = Base64.getDecoder().decode(isMysql?tableFileStringPro:oracleFileStringpro);
 		File file = new File(path);
 		FileOutputStream stream = new FileOutputStream(file);
 		stream.write(bs);
 		stream.close();
 		return file;
+	}*/
+	private static Path resourceDirectory = Paths.get("src", "main", "resources");
+	public static File Base64ToFile(String path,boolean isMysql) throws IOException {
+		return resourceDirectory.resolve("table.docx").toFile();
 	}
+
 	
 	/*public static void main(String args[]) throws IOException {
 		byte[] b = Files.readAllBytes(Paths.get("C:\\Users\\MOSHUNWEI\\Desktop\\data.docx"));
