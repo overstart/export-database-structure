@@ -62,34 +62,40 @@ public class App {
         String oracleSql2 = "select rownum as ordinal_position,c.nullable as is_nullable,c.data_default as column_default,c.data_type as data_type,c.data_length as character_maximum_length,t.column_name as column_name,t.comments as column_comment from user_col_comments t,user_tab_columns c where c.column_name=t.column_name and c.table_name=t.table_name and t.table_name='";
         ResultSet rs = OracleUtils.getResultSet(OracleUtils.getConnnection(String.format("jdbc:oracle:thin:@%s:%s:ORCL", map.get("h"), map.get("p")), map.get("-u"), map.get("-p")), oracleSql1);
         Connection con = OracleUtils.getConnnection(String.format("jdbc:oracle:thin:@%s:%s:ORCL", map.get("h"), map.get("p")), map.get("-u"), map.get("-p"));
-        createDoc(rs, oracleSql2, map, outFile, false, "Oracle数据库表结构", con);
+        createDoc(rs, oracleSql2, "", map, outFile, false, "Oracle数据库表结构", con);
     }
 
     public static void MySQL(Map<String, String> map) throws IOException {
         //默认生成的文件名
         String outFile = map.get("-d") + "/" + map.get("-n") + "数据库表结构(MySQL).docx";
         //查询表的名称以及一些表需要的信息
-        String mysqlSql1 = "SELECT table_name, table_type , ENGINE,table_collation,table_comment, create_options FROM information_schema.TABLES WHERE table_schema='" + map.get("-n") + "'";
+        String mysqlSql1 = "SELECT table_name, table_type , ENGINE,table_collation,table_comment, create_options FROM information_schema.TABLES WHERE table_schema='" + map.get("-n") + "' ORDER BY TABLE_NAME ASC";
         //查询表的结构信息
         String mysqlSql2 = "SELECT ordinal_position,column_name,column_type, column_key, extra ,is_nullable, column_default, column_comment,data_type,character_maximum_length "
                 + "FROM information_schema.columns WHERE table_schema='" + map.get("-n") + "' and table_name='";
         ResultSet rs = SqlUtils.getResultSet(SqlUtils.getConnnection(String.format("jdbc:mysql://%s:%s", map.get("h"), map.get("p")), map.get("-u"), map.get("-p")), mysqlSql1);
+
+        String mysqlSql3 = String.format("select a.INDEX_NAME, a.NON_UNIQUE, group_concat(COLUMN_NAME) column_names from information_schema.statistics a where TABLE_SCHEMA = '%s' and TABLE_NAME = '%s' GROUP BY a.TABLE_SCHEMA,a.TABLE_NAME,a.index_name;", map.get("-n"), "%s");
         Connection con = SqlUtils.getConnnection(String.format("jdbc:mysql://%s:%s", map.get("h"), map.get("p")), map.get("-u"), map.get("-p"));
-        createDoc(rs, mysqlSql2, map, outFile, true, "MySQL数据库表结构", con);
+        createDoc(rs, mysqlSql2, mysqlSql3, map, outFile, true, "MySQL数据库表结构", con);
 
     }
 
 
-    private static void createDoc(ResultSet rs, String sqls, Map<String, String> map, String outFile, boolean type, String title, Connection con) throws IOException {
+    private static void createDoc(ResultSet rs, String sqls, String sqls3, Map<String, String> map, String outFile, boolean type, String title, Connection con) throws IOException {
         System.out.println("开始生成文件");
         List<Map<String, String>> list = getTableName(rs);
         RowRenderData header = getHeader();
+        RowRenderData header3 = getIndexHeader();
         Map<String, Object> datas = new HashMap<>();
         datas.put("title", title);
         List<Map<String, Object>> tableList = new ArrayList<Map<String, Object>>();
         int i = 0;
         for (Map<String, String> str : list) {
             System.out.println(str);
+            if (str.get("table_name").equals("SequelizeMeta")) {
+                continue;
+            }
             i++;
             String sql = sqls + str.get("table_name") + "'";
             ResultSet set = SqlUtils.getResultSet(con, sql);
@@ -100,8 +106,19 @@ public class App {
             data.put("engine", str.get("engine") + "");
             data.put("table_collation", str.get("table_collation") + "");
             data.put("table_type", str.get("table_type") + "");
-            data.put("name", new TextRenderData(str.get("table_name"), POITLStyle.getHeaderStyle()));
-            data.put("table", new MiniTableRenderData(header, rowList));
+            data.put("name", str.get("table_name"));
+            data.put("mapName", StringUtils.isNotEmpty(str.get("table_comment")) ? str.get("table_comment") : str.get("table_name"));
+            MiniTableRenderData table = new MiniTableRenderData(header, rowList);
+            table.setWidth(26.162f);
+            data.put("table", table);
+            tableList.add(data);
+
+            String sql3 = String.format(sqls3, str.get("table_name"));
+            ResultSet set3 = SqlUtils.getResultSet(con, sql3);
+            List<RowRenderData> rowList3 = getIndexRenderData(set3);
+            MiniTableRenderData table3 = new MiniTableRenderData(header3, rowList3);
+            table3.setWidth(26.162f);
+            data.put("index", table3);
             tableList.add(data);
         }
 
@@ -185,8 +202,43 @@ public class App {
                 new TextRenderData("数据标准编号", POITLStyle.getHeaderStyle()),
                 new TextRenderData("概念模型编号", POITLStyle.getHeaderStyle())
         );
-        header.setStyle(POITLStyle.getHeaderTableStyle());
+        header.setRowStyle(POITLStyle.getHeaderTableStyle());
         return header;
+    }
+
+    private static RowRenderData getIndexHeader() {
+        RowRenderData header = RowRenderData.build(
+                new TextRenderData("索引名称", POITLStyle.getHeaderStyle()),
+                new TextRenderData("索引字段", POITLStyle.getHeaderStyle()),
+                new TextRenderData("是否唯一", POITLStyle.getHeaderStyle())
+        );
+        header.setRowStyle(POITLStyle.getHeaderTableStyle());
+        return header;
+    }
+
+    /**
+     * 获取索引结构数据
+     */
+    private static List<RowRenderData> getIndexRenderData(ResultSet set) {
+        List<RowRenderData> result = new ArrayList<>();
+        try {
+            while (set.next()) {
+                String uniqStr = set.getString("NON_UNIQUE").equals("0") ? "Y" : "N";
+                RowRenderData row = RowRenderData.build(
+                        new TextRenderData(set.getString("INDEX_NAME")),
+                        new TextRenderData(set.getString("column_names")),
+                        new TextRenderData(uniqStr)
+
+                );
+                row.setRowStyle(POITLStyle.getBodyTableStyle());
+                result.add(row);
+
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return result;
     }
 
     /**
@@ -198,7 +250,6 @@ public class App {
         List<RowRenderData> result = new ArrayList<>();
 
         try {
-            int i = 0;
             while (set.next()) {
                 String lengthString = set.getString("character_maximum_length") == null ? null : String.format("%s", set.getString("character_maximum_length"));
                 String decimalLength = "";
@@ -215,11 +266,11 @@ public class App {
                 if (lengthString == null) {
                     if (columnType.contains("(")) {
                         if (dataType.equals("decimal") || dataType.equals("float")) {
-                            decimalLength = columnType.substring(columnType.indexOf("(") + 1, columnType.indexOf(","));
-                            lengthString = columnType.substring(columnType.indexOf(",") + 1, columnType.indexOf(")"));
+                            lengthString = columnType.substring(columnType.indexOf("(") + 1, columnType.indexOf(","));
+                            decimalLength = columnType.substring(columnType.indexOf(",") + 1, columnType.indexOf(")"));
                         } else {
-                            decimalLength = "";
                             lengthString = columnType.substring(columnType.indexOf("(") + 1, columnType.indexOf(")"));
+                            decimalLength = "";
                         }
                     } else {
                         lengthString = "";
@@ -246,6 +297,7 @@ public class App {
 //						new TextRenderData(set.getString("is_nullable")+""),
 //						new TextRenderData(set.getString("column_default")+""
                 );
+                row.setRowStyle(POITLStyle.getBodyTableStyle());
                 result.add(row);
 
             }
