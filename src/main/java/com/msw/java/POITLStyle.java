@@ -8,7 +8,7 @@ public class POITLStyle {
 	public static Style getHeaderStyle(){
 		Style style = new Style();
 		style.setBold(true);
-		style.setFontSize(14);
+		style.setFontSize(11);
 		style.setColor("000000");
 		style.setFontFamily("宋体");
 		return style;
@@ -23,7 +23,7 @@ public class POITLStyle {
 	public static Style getBodyStyle(){
 		Style style = new Style();
 		style.setBold(false);
-		style.setFontSize(12);
+		style.setFontSize(11);
 		style.setColor("000000");
 		style.setFontFamily("宋体");
 		return style;

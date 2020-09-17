@@ -172,10 +172,18 @@ public class App {
      */
     private static RowRenderData getHeader() {
         RowRenderData header = RowRenderData.build(
-                new TextRenderData("列名", POITLStyle.getHeaderStyle()),
-                new TextRenderData("名称", POITLStyle.getHeaderStyle()),
-                new TextRenderData("数据类型", POITLStyle.getHeaderStyle()),
-                new TextRenderData("注释", POITLStyle.getHeaderStyle())
+                new TextRenderData("属性中文名称", POITLStyle.getHeaderStyle()),
+                new TextRenderData("字段英文名称", POITLStyle.getHeaderStyle()),
+                new TextRenderData("业务含义说明", POITLStyle.getHeaderStyle()),
+                new TextRenderData("Domain或数据类型", POITLStyle.getHeaderStyle()),
+                new TextRenderData("数据长度", POITLStyle.getHeaderStyle()),
+                new TextRenderData("小数位数", POITLStyle.getHeaderStyle()),
+                new TextRenderData("是否为空", POITLStyle.getHeaderStyle()),
+                new TextRenderData("是否为主键", POITLStyle.getHeaderStyle()),
+                new TextRenderData("是否为外键", POITLStyle.getHeaderStyle()),
+                new TextRenderData("是否是代码", POITLStyle.getHeaderStyle()),
+                new TextRenderData("数据标准编号", POITLStyle.getHeaderStyle()),
+                new TextRenderData("概念模型编号", POITLStyle.getHeaderStyle())
         );
         header.setStyle(POITLStyle.getHeaderTableStyle());
         return header;
@@ -192,26 +200,53 @@ public class App {
         try {
             int i = 0;
             while (set.next()) {
-//				i++;
-                String lengthString = set.getString("character_maximum_length") == null ? "" : String.format("(%s)", set.getString("character_maximum_length"));
+                String lengthString = set.getString("character_maximum_length") == null ? null : String.format("%s", set.getString("character_maximum_length"));
+                String decimalLength = "";
+                String isNullStr = set.getString("is_nullable").equals("YES") ? "Y" : "N";
+                String isPriStr = set.getString("column_key").contains("PRI") ? "Y" : "N";
+                String isOutStr = "";
+                String isCode = "";
+                String isStand = "编码型";
+                String isModelCode = "";
+
+
+                String columnType = set.getString("column_type");
+                String dataType = set.getString("data_type");
+                if (lengthString == null) {
+                    if (columnType.contains("(")) {
+                        if (dataType.equals("decimal") || dataType.equals("float")) {
+                            decimalLength = columnType.substring(columnType.indexOf("(") + 1, columnType.indexOf(","));
+                            lengthString = columnType.substring(columnType.indexOf(",") + 1, columnType.indexOf(")"));
+                        } else {
+                            decimalLength = "";
+                            lengthString = columnType.substring(columnType.indexOf("(") + 1, columnType.indexOf(")"));
+                        }
+                    } else {
+                        lengthString = "";
+                    }
+                }
+
                 String columnComment = set.getString("column_comment");
                 String columnName = set.getString("column_name");
                 RowRenderData row = RowRenderData.build(
 //						new TextRenderData(set.getString("ordinal_position")+""),
-                        new TextRenderData(set.getString("column_name") + ""),
                         new TextRenderData(formatComment(columnName, columnComment)),
-                        new TextRenderData(set.getString("data_type") + lengthString),
-                        new TextRenderData("")
+                        new TextRenderData(columnName),
+                        new TextRenderData(formatComment(columnName, columnComment)),
+                        new TextRenderData(set.getString("data_type")),
+                        new TextRenderData(lengthString),
+                        new TextRenderData(decimalLength),
+                        new TextRenderData(isNullStr),
+                        new TextRenderData(isPriStr),
+                        new TextRenderData(isOutStr),
+                        new TextRenderData(isCode),
+                        new TextRenderData(isStand),
+                        new TextRenderData(isModelCode)
 //						new TextRenderData(set.getString("character_maximum_length")+""),
 //						new TextRenderData(set.getString("is_nullable")+""),
 //						new TextRenderData(set.getString("column_default")+""
                 );
-                if (i % 2 == 0) {
-//					row.setStyle(POITLStyle.getBodyTableStyle());
-                    result.add(row);
-                } else {
-                    result.add(row);
-                }
+                result.add(row);
 
             }
         } catch (SQLException e) {
