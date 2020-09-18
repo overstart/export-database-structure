@@ -1,5 +1,6 @@
 package com.msw.java;
 
+import com.alibaba.fastjson.JSON;
 import com.deepoove.poi.XWPFTemplate;
 import com.deepoove.poi.data.DocxRenderData;
 import com.deepoove.poi.data.MiniTableRenderData;
@@ -26,8 +27,6 @@ import java.util.Map;
  */
 public class App {
     public static void main(String[] args) throws IOException {
-
-
         //使用jar的命令，参数有4个，如果没有4个直接退出，没得商量
         if (args.length < 6) {
             System.out.println("参数：");
@@ -93,7 +92,7 @@ public class App {
         int i = 0;
         for (Map<String, String> str : list) {
             System.out.println(str);
-            if (str.get("table_name").equals("SequelizeMeta")) {
+            if (str.get("table_name").equals("SequelizeMeta") || str.get("table_name").startsWith("migrations")) {
                 continue;
             }
             i++;
@@ -119,7 +118,6 @@ public class App {
             MiniTableRenderData table3 = new MiniTableRenderData(header3, rowList3);
             table3.setWidth(26.162f);
             data.put("index", table3);
-            tableList.add(data);
         }
 
         datas.put("tablelist", new DocxRenderData(FileUtils.Base64ToFile(outFile, type), tableList));
@@ -255,7 +253,7 @@ public class App {
                 String decimalLength = "";
                 String isNullStr = set.getString("is_nullable").equals("YES") ? "Y" : "N";
                 String isPriStr = set.getString("column_key").contains("PRI") ? "Y" : "N";
-                String isOutStr = "";
+                String isOutStr = "N";
                 String isCode = "";
                 String isStand = "编码型";
                 String isModelCode = "";
@@ -309,6 +307,19 @@ public class App {
     }
 
     private static String formatComment(String columnName, String columnComment) {
+        if (StringUtils.isNotEmpty(columnComment) && columnComment.contains("{") && columnComment.contains("}")
+                && (columnName.contains("type") || columnName.contains("status"))) {
+            System.out.println(columnComment);
+            String jsonStr = columnComment.substring(columnComment.indexOf("{"), columnComment.indexOf("}") + 1);
+            Map jsonMap = JSON.parseObject(jsonStr, Map.class);
+            StringBuilder sb = new StringBuilder(columnComment.substring(0, columnComment.indexOf("{")));
+            sb.append(" 枚举值：");
+            jsonMap.forEach((key, value) -> {
+                sb.append(key).append("(").append(value).append("),");
+            });
+            return sb.substring(0, sb.length() -1);
+        }
+
         if (columnName.equals("created_at")) {
             return StringUtils.isNotEmpty(columnComment) ? columnComment : "创建时间";
         }
@@ -339,7 +350,10 @@ public class App {
         if (columnName.equals("type")) {
             return StringUtils.isNotEmpty(columnComment) ? columnComment : "类型";
         }
-        return columnComment;
+        if (columnName.equals("compute_type")) {
+            return formatComment(columnName, "计算类型{\"PSI\":\"PSI\",\"TRAIN\": \"TRAIN\",\"PREDICT\": \"PREDICT\",\"LPSI\": \"LPSI\"}");
+        }
+        return StringUtils.isNotEmpty(columnComment) ? columnComment : columnName;
     }
 
     /**
