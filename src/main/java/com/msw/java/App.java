@@ -92,7 +92,10 @@ public class App {
         int i = 0;
         for (Map<String, String> str : list) {
             System.out.println(str);
-            if (str.get("table_name").equals("SequelizeMeta") || str.get("table_name").startsWith("migrations")) {
+            if (str.get("table_name").equals("SequelizeMeta")
+                    || str.get("table_name").startsWith("migrations")
+                    || str.get("table_name").equals("flyway_schema_history")
+            ) {
                 continue;
             }
             i++;
@@ -317,13 +320,13 @@ public class App {
             jsonMap.forEach((key, value) -> {
                 sb.append(key).append("(").append(value).append("),");
             });
-            return sb.substring(0, sb.length() -1);
+            return sb.substring(0, sb.length() - 1);
         }
 
-        if (columnName.equals("created_at")) {
+        if (columnName.equals("created_at") || columnName.equals("created")) {
             return StringUtils.isNotEmpty(columnComment) ? columnComment : "创建时间";
         }
-        if (columnName.equals("updated_at")) {
+        if (columnName.equals("updated_at") || columnName.equals("updated")) {
             return StringUtils.isNotEmpty(columnComment) ? columnComment : "更新时间";
         }
         if (columnName.equals("deleted_at")) {
@@ -352,6 +355,33 @@ public class App {
         }
         if (columnName.equals("compute_type")) {
             return formatComment(columnName, "计算类型{\"PSI\":\"PSI\",\"TRAIN\": \"TRAIN\",\"PREDICT\": \"PREDICT\",\"LPSI\": \"LPSI\"}");
+        }
+        if (columnName.equals("creator_host")) {
+            return StringUtils.isNotEmpty(columnComment) ? columnComment : "创建方数据所在节点ip";
+        }
+        if (columnName.equals("creator_task_receive_port")) {
+            return StringUtils.isNotEmpty(columnComment) ? columnComment : "创建方数据节点任务接收端口号";
+        }
+        if (columnName.equals("creator_serve_base_port")) {
+            return StringUtils.isNotEmpty(columnComment) ? columnComment : "创建方节点计算端口";
+        }
+        if (columnName.equals("partner_host")) {
+            return StringUtils.isNotEmpty(columnComment) ? columnComment : "接收方数据所在节点ip";
+        }
+        if (columnName.equals("partner_task_receive_port")) {
+            return StringUtils.isNotEmpty(columnComment) ? columnComment : "接收方数据节点任务接收端口号";
+        }
+        if (columnName.equals("partner_serve_base_port")) {
+            return StringUtils.isNotEmpty(columnComment) ? columnComment : "接收方节点计算端口";
+        }
+        if (columnName.equals("helper_host")) {
+            return StringUtils.isNotEmpty(columnComment) ? columnComment : "协作方数据所在节点ip";
+        }
+        if (columnName.equals("helper_task_receive_port")) {
+            return StringUtils.isNotEmpty(columnComment) ? columnComment : "协作方数据节点任务接收端口号";
+        }
+        if (columnName.equals("helper_serve_base_port")) {
+            return StringUtils.isNotEmpty(columnComment) ? columnComment : "协作方节点计算端口";
         }
         return StringUtils.isNotEmpty(columnComment) ? columnComment : columnName;
     }
